@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1074137644410",
+    "project_id": "splitmate-julita-2026",
+    "storage_bucket": "splitmate-julita-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1074137644410:android:dbd5b5cf192f059096eac3",
+        "android_client_info": {
+          "package_name": "com.example.split_mate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsvttnKDGQ1GbWi8LyCZKE_pEent-dP84"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
