@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/preference_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,6 +11,8 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  final PreferenceService _prefs = PreferenceService();
+
   @override
   void initState() {
     super.initState();
@@ -19,9 +22,30 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _navigate() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
-    final auth = context.read<AuthProvider>();
-    if (auth.isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/home');
+
+    // Cek SharedPreferences dulu (lebih cepat dari Firebase)
+    final isLoggedIn = await _prefs.isLoggedIn();
+
+    if (!mounted) return;
+
+    if (isLoggedIn) {
+      // Juga cek Firebase auth state
+      final auth = context.read<AuthProvider>();
+      if (auth.isLoggedIn) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        // Firebase belum load, tunggu sebentar lagi
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!mounted) return;
+        final authRetry = context.read<AuthProvider>();
+        if (authRetry.isLoggedIn) {
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          // SharedPreferences bilang login tapi Firebase tidak — clear sesi
+          await _prefs.clearSession();
+          Navigator.pushReplacementNamed(context, '/onboarding');
+        }
+      }
     } else {
       Navigator.pushReplacementNamed(context, '/onboarding');
     }
@@ -62,6 +86,11 @@ class _SplashScreenState extends State<SplashScreen> {
             style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
           const Spacer(),
+          const CircularProgressIndicator(
+            color: Color(0xFF7C3AED),
+            strokeWidth: 2,
+          ),
+          const SizedBox(height: 16),
           const Text(
             'FINANCIALLY SOCIAL',
             style: TextStyle(

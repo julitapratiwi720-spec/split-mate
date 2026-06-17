@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.25/splitmate-server';
+ static const String baseUrl = 'http://10.27.110.234/splitmate-server';
 
   // Register user ke MySQL
   static Future<bool> registerUser(String uid, String name, String email) async {

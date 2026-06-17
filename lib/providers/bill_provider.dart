@@ -14,6 +14,11 @@ class BillProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  BillProvider() {
+    debugPrint('🔥 BillProvider initialized');
+    _wsService.connect('global_room');
+  }
+
   List<BillModel> get bills => _bills;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -22,6 +27,7 @@ class BillProvider extends ChangeNotifier {
   void loadBills(String userId) {
     _isLoading = true;
     notifyListeners();
+
     _firestoreService.getBillsByUser(userId).listen((bills) {
       _bills = bills;
       _isLoading = false;
@@ -41,9 +47,12 @@ class BillProvider extends ChangeNotifier {
     double servicePercent = 0,
   }) async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
+
     try {
       final billId = const Uuid().v4();
+
       final bill = BillModel(
         id: billId,
         title: title,
@@ -56,10 +65,10 @@ class BillProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      // Simpan ke Firestore
+      debugPrint('📝 Menyimpan ke Firestore...');
       await _firestoreService.createBill(bill);
 
-      // Simpan ke MySQL + kirim FCM via PHP
+      debugPrint('📝 Menyimpan ke MySQL...');
       await ApiService.createBill({
         'id': billId,
         'title': title,
@@ -72,8 +81,10 @@ class BillProvider extends ChangeNotifier {
         'service_percent': servicePercent,
       });
 
-      // Kirim notifikasi Firestore ke semua user kecuali pembuat
+      debugPrint('🔔 Membuat notifikasi...');
+
       final allUsers = await _firestoreService.getAllUsers();
+
       for (final user in allUsers) {
         if (user.uid != createdBy) {
           final notif = NotificationModel(
@@ -83,13 +94,20 @@ class BillProvider extends ChangeNotifier {
             body: '$createdByName menambahkan tagihan "$title"',
             createdAt: DateTime.now(),
           );
+
           await _firestoreService.sendNotification(notif);
         }
       }
 
+      debugPrint('📢 Mengirim event websocket...');
       _wsService.sendMessage('Bill baru: $title');
+
       return true;
-    } catch (e) {
+    } catch (e, s) {
+      debugPrint('❌ CREATE BILL ERROR');
+      debugPrint(e.toString());
+      debugPrint(s.toString());
+
       _errorMessage = e.toString();
       return false;
     } finally {
@@ -98,22 +116,34 @@ class BillProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> updateBillStatus(String billId, String status) async {
-    // Update di Firestore
-    await _firestoreService.updateBill(billId, {'status': status});
-    // Update di MySQL
-    await ApiService.updateBillStatus(billId, status);
+  Future<void> updateBillStatus(
+    String billId,
+    String status,
+  ) async {
+    await _firestoreService.updateBill(
+      billId,
+      {'status': status},
+    );
+
+    await ApiService.updateBillStatus(
+      billId,
+      status,
+    );
   }
 
   Future<void> deleteBill(String billId) async {
-    // Hapus di Firestore
     await _firestoreService.deleteBill(billId);
-    // Hapus di MySQL
+
     await ApiService.deleteBill(billId);
   }
 
-  void connectWebSocket(String billId) => _wsService.connect(billId);
-  void disconnectWebSocket() => _wsService.disconnect();
+  void connectWebSocket(String billId) {
+    _wsService.connect(billId);
+  }
+
+  void disconnectWebSocket() {
+    _wsService.disconnect();
+  }
 
   @override
   void dispose() {

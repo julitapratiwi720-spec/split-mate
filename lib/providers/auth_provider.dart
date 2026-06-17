@@ -79,6 +79,42 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> signInWithGoogle() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final cred = await _authService.signInWithGoogle();
+      if (cred == null) {
+        _errorMessage = 'Google Sign-In dibatalkan';
+        return false;
+      }
+      _user = cred.user;
+
+      // Simpan ke Firestore (upsert — aman kalau sudah ada)
+      await _firestoreService.saveUser(UserModel(
+        uid: cred.user!.uid,
+        email: cred.user!.email ?? '',
+        name: cred.user!.displayName ?? '',
+      ));
+
+      await _notificationService.initialize(cred.user!.uid);
+      _notificationService.onNotificationReceived = (title, body) {
+        debugPrint('Notif diterima: $title - $body');
+      };
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = e.message;
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     await _authService.logout();
     _user = null;
